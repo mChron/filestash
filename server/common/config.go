@@ -78,6 +78,7 @@ func NewConfiguration() Configuration {
 					FormElement{Name: "auto_connect", Type: "boolean", Default: false, Description: "User don't have to click on the login button if an admin is prefilling a unique backend"},
 					FormElement{Name: "remember_me", Type: "boolean", Default: true, Description: "Visiblity of the remember me button on the login screen"},
 					FormElement{Name: "upload_button", Type: "boolean", Default: false, Description: "Display the upload button on any device"},
+					FormElement{Name: "custom_css", Type: "long_text", Default: "", Description: "Set custom css code for your instance"},
 				},
 			},
 			Form{
@@ -113,16 +114,6 @@ func NewConfiguration() Configuration {
 				Title: "auth",
 				Elmnts: []FormElement{
 					FormElement{Name: "admin", Type: "bcrypt", Default: "", Description: "Password of the admin section."},
-				},
-				Form: []Form{
-					Form{
-						Title: "custom",
-						Elmnts: []FormElement{
-							FormElement{Name: "client_secret", Type: "password"},
-							FormElement{Name: "client_id", Type: "text"},
-							FormElement{Name: "sso_domain", Type: "text"},
-						},
-					},
 				},
 			},
 		},
@@ -367,7 +358,6 @@ func (this Configuration) Export() interface{} {
 		RememberMe    bool              `json:"remember_me"`
 		UploadButton  bool              `json:"upload_button"`
 		Connections   interface{}       `json:"connections"`
-		EnableSearch  bool              `json:"enable_search"`
 		EnableShare   bool              `json:"enable_share"`
 		MimeTypes     map[string]string `json:"mime"`
 	}{
@@ -379,7 +369,6 @@ func (this Configuration) Export() interface{} {
 		RememberMe:    this.Get("general.remember_me").Bool(),
 		UploadButton:  this.Get("general.upload_button").Bool(),
 		Connections:   this.Conn,
-		EnableSearch:  this.Get("features.search.enable").Bool(),
 		EnableShare:   this.Get("features.share.enable").Bool(),
 		MimeTypes:     AllMimeTypes(),
 	}

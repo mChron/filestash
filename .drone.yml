@@ -14,10 +14,10 @@ steps:
   image: alpine:latest
   depends_on: [ clone ]
   commands:
-  - mkdir -p ./dist/data/state/
-  - cp -R config ./dist/data/state/
-  - mkdir -p ./filestash/data/state/
-  - cp -R config ./filestash/data/state/
+  - mkdir -p ./dist/data/state/config
+  - cp config/config.json ./dist/data/state/config/
+  - mkdir -p ./filestash/data/state/config
+  - cp config/config.json ./filestash/data/state/config/
 
 - name: build_frontend
   image: node:12-alpine
@@ -61,7 +61,7 @@ steps:
   - npm install --silent
   - npm test
 
-- name: test_backend
+- name: test_backend_unit
   image: golang:1.12-alpine
   depends_on: [ test_prepare, build_backend, build_frontend ]
   environment:
@@ -87,10 +87,10 @@ steps:
 
 - name: release_prepare
   image: debian:stable-slim
-  depends_on: [ test_frontend, test_backend, test_e2e ]
+  depends_on: [ test_frontend, test_backend_unit, test_e2e ]
+  when:
+    branch: master
   environment:
-    GPG_PRIVATE:
-      from_secret: GPG_PRIVATE
     GPG_PASSPHRASE:
       from_secret: GPG_PASSPHRASE
   commands:
@@ -108,13 +108,14 @@ steps:
     branch: master
   settings:
     command_timeout: 30m
-    host: hal.kerjean.me
-    user:
+    host: rick.kerjean.me
+    username:
       from_secret: SSH_USERNAME
     password:
       from_secret: SSH_PASSWORD
     source: filestash_Linux-x86_64.tar.gpg
-    target: /app/pages/data/projects/filestash/downloads/latest/
+    target: /mnt/me-kerjean-pages/projects/filestash/downloads/latest/
+    overwrite: true
 
 - name: release_docker
   image: plugins/docker
@@ -132,28 +133,24 @@ steps:
     - latest
     - "${DRONE_COMMIT_SHA:0:7}"
 
-- name: release_deploy
-  image: appleboy/drone-ssh
-  depends_on: [ release_docker ]
+- name: deployment
+  image: quay.io/honestbee/drone-kubernetes
+  depends_on: [ release_publish ]
   when:
     branch: master
-  settings:
-    command_timeout: 10m
-    host: hal.kerjean.me
-    user:
-      from_secret: SSH_USERNAME
-    password:
-      from_secret: SSH_PASSWORD
-    port: 22
-    script:
-    - cd /app/filestash/
-    - docker-compose pull
-    - docker-compose up -d --force-recreate --build
-    - docker image prune -f
+  kubernetes_server: ${KUBERNETES_SERVER}
+  kubernetes_cert: ${KUBERNETES_CERT}
+  kubernetes_token: ${KUBERNETES_TOKEN}
+  deployment: app-filestash-demo
+  repo: machines/filestash
+  namespace: filestash
+  container: app-filestash-demo
+  tag: latest
 
 - name: release_report
   image: plugins/irc
-  depends_on: [ release_deploy ]
+  failure: ignore
+  depends_on: [ release_docker ]
   when:
     branch: master
   settings:

@@ -1,13 +1,13 @@
 package backend
 
 import (
-	"fmt"
 	. "github.com/mickael-kerjean/filestash/server/common"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"net"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -54,18 +54,57 @@ func (s Sftp) Init(params map[string]string, app *App) (IBackend, error) {
 
 	addr := p.hostname + ":" + p.port
 	var auth []ssh.AuthMethod
+
+	keyStartMatcher := regexp.MustCompile(`^-----BEGIN [A-Z\ ]+-----`)
+	keyEndMatcher := regexp.MustCompile(`-----END [A-Z\ ]+-----$`)
+	keyContentMatcher := regexp.MustCompile(`^[a-zA-Z0-9\+\/\=\n]+$`)
+
 	isPrivateKey := func(pass string) bool {
-		if len(pass) > 1000 && strings.HasPrefix(pass, "-----") {
-			return true
+		p := strings.TrimSpace(pass)
+
+		// match private key beginning
+		if keyStartMatcher.FindStringIndex(p) == nil {
+			return false
 		}
-		return false
+		p = keyStartMatcher.ReplaceAllString(p, "")
+		// match private key ending
+		if keyEndMatcher.FindStringIndex(p) == nil {
+			return false
+		}
+		p = keyEndMatcher.ReplaceAllString(p, "")
+		p = strings.Replace(p, " ", "", -1)
+		// match private key content
+		if keyContentMatcher.FindStringIndex(p) == nil {
+			return false
+		}
+		return true
+	}
+
+	restorePrivateKeyLineBreaks := func(pass string) string {
+		p := strings.TrimSpace(pass)
+
+		keyStartString := keyStartMatcher.FindString(p)
+		p = keyStartMatcher.ReplaceAllString(p, "")
+		keyEndString := keyEndMatcher.FindString(p)
+		p = keyEndMatcher.ReplaceAllString(p, "")
+		p = strings.Replace(p, " ", "", -1)
+		keyContentString := keyContentMatcher.FindString(p)
+
+		return keyStartString + "\n" + keyContentString + "\n" + keyEndString
 	}
 
 	if isPrivateKey(p.password) {
-		signer, err := ssh.ParsePrivateKeyWithPassphrase([]byte(p.password), []byte(p.passphrase))
-		if err == nil {
-			auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+		privateKey := restorePrivateKeyLineBreaks(p.password)
+		signer, err := func() (ssh.Signer, error) {
+			if p.passphrase == "" {
+				return ssh.ParsePrivateKey([]byte(privateKey))
+			}
+			return ssh.ParsePrivateKeyWithPassphrase([]byte(privateKey), []byte(p.passphrase))
+		}()
+		if err != nil {
+			return nil, err
 		}
+		auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
 	} else {
 		auth = []ssh.AuthMethod{ssh.Password(p.password)}
 	}
@@ -84,16 +123,16 @@ func (s Sftp) Init(params map[string]string, app *App) (IBackend, error) {
 			return ssh.FixedHostKey(hostKey)(hostname, remote, key)
 		},
 	}
+
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
-		fmt.Println(err.Error())
-		return &s, NewError("Connection denied", 502)
+		return &s, ErrAuthenticationFailed
 	}
 	s.SSHClient = client
 
 	session, err := sftp.NewClient(s.SSHClient)
 	if err != nil {
-		return &s, NewError("Can't establish connection", 502)
+		return &s, err
 	}
 	s.SFTPClient = session
 	SftpCache.Set(params, &s)
@@ -120,7 +159,7 @@ func (b Sftp) LoginForm() Form {
 			},
 			FormElement{
 				Name:        "password",
-				Type:        "long_password",
+				Type:        "password",
 				Placeholder: "Password",
 			},
 			FormElement{
@@ -145,7 +184,7 @@ func (b Sftp) LoginForm() Form {
 			FormElement{
 				Id:          "sftp_passphrase",
 				Name:        "passphrase",
-				Type:        "text",
+				Type:        "password",
 				Placeholder: "Passphrase",
 			},
 			FormElement{

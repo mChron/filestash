@@ -8,7 +8,8 @@ import './adminpage.scss';
 import { Icon, LoadingPage } from '../components/';
 import { Config, Admin } from '../model';
 import { notify } from '../helpers/';
-import { HomePage, DashboardPage, ConfigPage, LogPage, PluginPage, SupportPage, SetupPage, LoginPage } from './adminpage/';
+import { HomePage, BackendPage, SettingsPage, LogPage, SetupPage, LoginPage } from './adminpage/';
+import { t } from '../locales/';
 
 
 function AdminOnly(WrappedComponent){
@@ -52,22 +53,25 @@ export class AdminPage extends React.Component {
     constructor(props){
         super(props);
         this.state = {
-            isAdmin: null
+            isAdmin: null,
+            isSaving: false
         };
+    }
+
+    isSaving(yesOrNo){
+        this.setState({isSaving: yesOrNo});
     }
 
     render(){
         return (
             <div className="component_page_admin">
-              <SideMenu url={this.props.match.url}/>
+              <SideMenu url={this.props.match.url} isLoading={this.state.isSaving}/>
               <div className="page_container scroll-y">
                 <ReactCSSTransitionGroup key={window.location.pathname} transitionName="adminpage" transitionLeave={true} transitionEnter={true} transitionLeaveTimeout={15000} transitionEnterTimeout={20000} transitionAppear={true} transitionAppearTimeout={20000}>
                   <Switch>
-                    <Route path={this.props.match.url + "/dashboard"} component={DashboardPage} />
-                    <Route path={this.props.match.url + "/configure"} component={ConfigPage} />
-                    <Route path={this.props.match.url + "/activity"} component={LogPage} />
-                    <Route path={this.props.match.url + "/plugins"} component={PluginPage} />
-                    <Route path={this.props.match.url + "/support"} component={SupportPage} />
+                    <Route path={this.props.match.url + "/backend"} render={()=><BackendPage isSaving={this.isSaving.bind(this)}/>} />
+                    <Route path={this.props.match.url + "/settings"} render={()=><SettingsPage isSaving={this.isSaving.bind(this)}/>} />
+                    <Route path={this.props.match.url + "/logs"} render={() =><LogPage isSaving={this.isSaving.bind(this)}/>} />
                     <Route path={this.props.match.url + "/setup"} component={SetupPage} />
                     <Route path={this.props.match.url} component={HomePage} />
                   </Switch>
@@ -81,30 +85,31 @@ export class AdminPage extends React.Component {
 const SideMenu = (props) => {
     return (
         <div className="component_menu_sidebar no-select">
-          <NavLink to={window.URL_PREFIX + "/"} className="header">
-            <Icon name="arrow_left" />
-            <img src="assets/logo/android-chrome-512x512.png" />
-          </NavLink>
-          <h2>Admin console</h2>
+          { props.isLoading ?
+            <div className="header">
+              <Icon name="arrow_left" style={{"opacity": 0}}/>
+              <Icon name="loading" />
+            </div> :
+            <NavLink to={window.URL_PREFIX + "/"} className="header">
+              <Icon name="arrow_left" />
+              <img src="assets/logo/android-chrome-512x512.png" />
+            </NavLink>
+          }
+          <h2>{ t("Admin console") }</h2>
           <ul>
             <li>
-              <NavLink activeClassName="active" to={props.url + "/dashboard"}>
-                Dashboard
+              <NavLink activeClassName="active" to={props.url + "/backend"}>
+                { t("Backend") }
               </NavLink>
             </li>
             <li>
-              <NavLink activeClassName="active" to={props.url + "/configure"}>
-                Configure
+              <NavLink activeClassName="active" to={props.url + "/settings"}>
+                { t("Settings") }
               </NavLink>
             </li>
             <li>
-              <NavLink activeClassName="active" to={props.url + "/activity"}>
-                Activity
-              </NavLink>
-            </li>
-            <li>
-              <NavLink activeClassName="active" to={props.url + "/support"}>
-                Support
+              <NavLink activeClassName="active" to={props.url + "/logs"}>
+                { t("Logs") }
               </NavLink>
             </li>
           </ul>

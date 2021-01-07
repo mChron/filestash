@@ -45,7 +45,7 @@ func Init(a *App) {
 	middlewares = []Middleware{ ApiHeaders, AdminOnly, SecureAjax }
 	admin.HandleFunc("/config",  NewMiddlewareChain(PrivateConfigHandler,       middlewares, *a)).Methods("GET")
 	admin.HandleFunc("/config",  NewMiddlewareChain(PrivateConfigUpdateHandler, middlewares, *a)).Methods("POST")
-	middlewares = []Middleware{ IndexHeaders }
+	middlewares = []Middleware{ IndexHeaders, AdminOnly, SecureAjax }
 	admin.HandleFunc("/log",                        NewMiddlewareChain(FetchLogHandler,          middlewares, *a)).Methods("GET")	
 
 	// API for File management
@@ -101,6 +101,9 @@ func Init(a *App) {
 	r.HandleFunc("/robots.txt", func(res http.ResponseWriter, req *http.Request) {
 		res.Write([]byte(""))
 	})
+	r.HandleFunc("/.well-known/security.txt", NewMiddlewareChain(WellKnownSecurityHandler, []Middleware{}, *a)).Methods("GET")
+	r.HandleFunc("/healthz", NewMiddlewareChain(HealthHandler, []Middleware{}, *a)).Methods("GET")
+	r.HandleFunc("/custom.css", NewMiddlewareChain(CustomCssHandler, []Middleware{}, *a)).Methods("GET")
 
 	if os.Getenv("DEBUG") == "true" {
 		initDebugRoutes(r)

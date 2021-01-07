@@ -12,7 +12,7 @@ export { Icon, img_placeholder } from './icon';
 export { Bundle } from './bundle';
 export { Modal } from './modal';
 export { ModalPrompt } from './prompt';
-export { ModalAlert } from './alert';
+export { ModalAlert, Alert } from './alert';
 export { ModalConfirm } from './confirm';
 export { Notification } from './notification';
 export { Audio } from './audio';
@@ -21,3 +21,4 @@ export { Dropdown, DropdownButton, DropdownList, DropdownItem } from './dropdown
 export { MapShot } from './mapshot';
 export { LoggedInOnly, ErrorPage, LoadingPage } from './decorator';
 export { FormBuilder } from './formbuilder';
+export { UploadQueue } from './upload_queue';

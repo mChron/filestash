@@ -48,11 +48,11 @@ func IndexHeaders(fn func(App, http.ResponseWriter, *http.Request)) func(ctx App
 		header.Set("X-Powered-By", fmt.Sprintf("Filestash/%s.%s <https://filestash.app>", APP_VERSION, BUILD_DATE))
 
 		cspHeader := "default-src 'none'; "
-		cspHeader += "style-src 'unsafe-inline'; "
+		cspHeader += "style-src 'self' 'unsafe-inline'; "
 		cspHeader += "font-src 'self' data:; "
 		cspHeader += "manifest-src 'self'; "
-		cspHeader += "script-src 'self' 'sha256-JNAde5CZQqXtYRLUk8CGgyJXo6C7Zs1lXPPClLM1YM4=' 'sha256-9/gQeQaAmVkFStl6tfCbHXn8mr6PgtxlH+hEp685lzY='; "
-		cspHeader += "img-src 'self' data: https://maps.wikimedia.org; "
+		cspHeader += "script-src 'self' 'sha256-JNAde5CZQqXtYRLUk8CGgyJXo6C7Zs1lXPPClLM1YM4=' 'sha256-9/gQeQaAmVkFStl6tfCbHXn8mr6PgtxlH+hEp685lzY=' 'sha256-ER9LZCe8unYk8AJJ2qopE+rFh7OUv8QG5q3h6jZeoSk='; "
+		cspHeader += "img-src 'self' blob: data: https://maps.wikimedia.org; "
 		cspHeader += "connect-src 'self'; "
 		cspHeader += "object-src 'self'; "
 		cspHeader += "media-src 'self' blob:; "
@@ -87,7 +87,7 @@ func SecureHeaders(fn func(App, http.ResponseWriter, *http.Request)) func(ctx Ap
 	return func(ctx App, res http.ResponseWriter, req *http.Request) {
 		if host := Config.Get("general.host").String(); host != "" {
 			if req.Host != host && req.Host != fmt.Sprintf("%s:443", host) {
-				Log.Error("Invalid access from host: %s", req.Host)
+				Log.Error("Request coming from \"%s\" was blocked, only traffic from \"%s\" is allowed. You can change this from the admin console under configure -> host", req.Host, host)
 				SendErrorResult(res, ErrNotAllowed)
 				return
 			}

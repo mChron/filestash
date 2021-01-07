@@ -66,12 +66,16 @@ let config = {
             }
         }),
         new CopyWebpackPlugin([
-            { from: 'manifest.json', to: "assets/" },
-            { from: 'worker/*.js', to: "assets/" },
-            { from: 'assets/logo/*' },
-            { from: 'assets/icons/*' },
-            { from: 'assets/fonts/*' }
+            { from: "locales/*.json", to: "assets/" },
+            { from: "manifest.json", to: "assets/" },
+            { from: "worker/*.js", to: "assets/" },
+            { from: "assets/logo/*" },
+            { from: "assets/icons/*" },
+            { from: "assets/fonts/*" },
         ], { context: path.join(__dirname, 'client') }),
+        new CopyWebpackPlugin([
+            { from: "node_modules/pdfjs-dist/", to: "assets/vendor/pdfjs"}
+        ]),
         //new BundleAnalyzerPlugin()
     ]
 };

@@ -39,6 +39,9 @@ import img_info from '../assets/img/info.svg';
 import img_fullscreen from '../assets/img/fullscreen.svg';
 import img_camera from '../assets/img/camera.svg';
 import img_location from '../assets/img/location.svg';
+import img_stop from '../assets/img/stop.svg';
+import img_refresh from '../assets/img/refresh.svg';
+import img_copy from '../assets/img/copy.svg';
 export const img_placeholder = "assets/icons/placeholder.png";
 
 export const Icon = (props) => {
@@ -126,7 +129,13 @@ export const Icon = (props) => {
         img = img_camera;
     }else if(props.name === 'location'){
         img = img_location;
-    }else{
+    } else if (props.name === 'stop') {
+        img = img_stop;
+    } else if (props.name === 'refresh') {
+        img = img_refresh;
+    } else if (props.name === 'copy') {
+        img = img_copy;
+    } else{
         throw('unknown icon: "'+props.name+"'");
     }
 

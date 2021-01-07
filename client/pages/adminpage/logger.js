@@ -2,6 +2,7 @@ import React from 'react';
 import { FormBuilder, Loader, Button, Icon } from '../../components/';
 import { Config, Log } from '../../model/';
 import { FormObjToJSON, notify, format } from '../../helpers/';
+import { t } from '../../locales/';
 
 import "./logger.scss";
 
@@ -10,7 +11,6 @@ export class LogPage extends React.Component {
         super(props);
         this.state = {
             form: {},
-            loading: false,
             log: "",
             config: {}
         };
@@ -33,13 +33,12 @@ export class LogPage extends React.Component {
     onChange(r){
         this.state.config["log"] = r[""].params;
         this.state.config["connections"] = window.CONFIG.connections;
-        this.setState({loading: true}, () => {
-            Config.save(this.state.config, false, () => {
-                this.setState({loading: false});
-            }, () => {
-                notify.send("Error while saving config", "error");
-                this.setState({loading: false});
-            });
+        this.props.isSaving(true);
+        Config.save(this.state.config, true, () => {
+            this.props.isSaving(false);
+        }, () => {
+            notify.send(err && err.message || t('Oops'), 'error');
+            this.props.isSaving(false);
         });
     }
 
@@ -51,7 +50,7 @@ export class LogPage extends React.Component {
         };
         return (
             <div className="component_logpage">
-              <h2>Logging { this.state.loading === true ? <Icon style={{height: '40px'}} name="loading"/> : null}</h2>
+              <h2>Logging</h2>
               <div style={{minHeight: '150px'}}>
                 <FormBuilder form={this.state.form} onChange={this.onChange.bind(this)}
                              render={ ($input, props, struct, onChange) => {
@@ -84,7 +83,7 @@ export class LogPage extends React.Component {
                 }
               </pre>
               <div>
-                <a href={Log.url()} download={filename()}><Button className="primary">Download</Button></a>
+                <a href={Log.url()} download={filename()}><Button className="primary">{ t("Download") }</Button></a>
               </div>
             </div>
         );

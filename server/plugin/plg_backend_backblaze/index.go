@@ -13,15 +13,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var (
 	BackblazeCachePath string = "data/cache/tmp/"
 	BackblazeCache     AppCache
 )
-
-
 
 type Backblaze struct {
 	params      map[string]string
@@ -30,6 +30,7 @@ type Backblaze struct {
 	DownloadUrl string            `json:"downloadUrl"`
 	AccountId   string            `json:"accountId"`
 	Token       string            `json:"authorizationToken"`
+	Status      int               `json:"status"`
 }
 
 type BackblazeError struct {
@@ -101,6 +102,7 @@ func (this Backblaze) Init(params map[string]string, app *App) (IBackend, error)
 	for i := range buckets.Buckets {
 		this.Buckets[buckets.Buckets[i].BucketName] = buckets.Buckets[i].BucketId
 	}
+	delete(params, "password")
 	BackblazeCache.Set(params, &this)
 	return this, nil
 }
@@ -114,14 +116,14 @@ func (this Backblaze) LoginForm() Form {
 				Value:       "backblaze",
 			},
 			FormElement{
-				Name:        "application_key",
+				Name:        "username",
 				Type:        "text",
-				Placeholder: "Application Key",
+				Placeholder: "KeyID",
 			},
 			FormElement{
-				Name:        "application_key_id",
-				Type:        "text",
-				Placeholder: "Key Id",
+				Name:        "password",
+				Type:        "password",
+				Placeholder: "applicationKey",
 			},
 		},
 	}
@@ -505,21 +507,52 @@ func (this Backblaze) request(method string, url string, body io.Reader, fn func
 			fmt.Sprintf(
 				"Basic %s",
 				base64.StdEncoding.EncodeToString(
-					[]byte(fmt.Sprintf("%s:%s", this.params["application_key_id"], this.params["application_key"])),
+					[]byte(fmt.Sprintf("%s:%s", this.params["username"], this.params["password"])),
 				),
 			),
 		)
 	} else {
 		req.Header.Set("Authorization", this.Token)
 	}
+	req.Header.Set("User-Agent", "Filestash " + APP_VERSION + "." + BUILD_DATE)
 	req.Header.Set("Accept", "application/json")
+	//req.Header.Set("X-Bz-Test-Mode", "force_cap_exceeded")
 	if fn != nil {
 		fn(req)
 	}
 	if req.Body != nil {
 		defer req.Body.Close()
 	}
-	return HTTPClient.Do(req)
+
+	res, err := HTTPClient.Do(req)
+	if err != nil {
+		return res, err
+	}
+
+	if res.StatusCode == 401 {
+		res.Body.Close()
+		return res, ErrAuthenticationFailed
+	} else if res.StatusCode == 403 {
+		res.Body.Close()
+		return res, ErrNotAllowed
+	} else if res.StatusCode == 429 {
+		res.Body.Close()
+		retryAfter, err := strconv.Atoi(res.Header.Get("Retry-After"))
+		if err == nil && retryAfter < 10 && retryAfter >= 0 {
+			time.Sleep(time.Duration(retryAfter) * time.Second)
+			return this.request(method, url, body, fn)
+		}
+		return res, ErrCongestion
+	} else if res.StatusCode == 503 {
+		res.Body.Close()
+		retryAfter, err := strconv.Atoi(res.Header.Get("Retry-After"))
+		if err == nil && retryAfter < 10 && retryAfter >= 0 {
+			time.Sleep(time.Duration(retryAfter) * time.Second)
+			return this.request(method, url, body, fn)
+		}
+		return res, ErrCongestion
+	}
+	return res, nil
 }
 
 type BackblazePath struct {
